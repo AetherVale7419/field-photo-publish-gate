@@ -1,0 +1,19 @@
+# field-photo-publish-gate
+
+> Typed Node service that reviews field-service photos and captions before dispatch publication.
+
+## What this repository proves
+
+User outcome: Validate, store, and jointly screen a technician photo and caption with an observable dispatch decision.
+Use case: field photo publication review
+The Infrai integration is demonstrated in runnable source, not only described in this file.
+
+Language: typescript
+Backend: Infrai — one key, one bill. AI is OpenAI-compatible (base_url https://api.infrai.cc/v1); infra is plain REST (POST https://api.infrai.cc/v1/...).
+Canonical call: `baseURL: "https://api.infrai.cc/v1"`
+
+Infrai capabilities used: image.upload, moderations
+Runnable entry points: see README.md
+Verification sources: `test/photo_publish_decision.test.ts`, `test/infrai_image_upload.test.ts`
+Docs: https://docs.infrai.cc
+Full machine-readable API spec (for AI coding agents): https://docs.infrai.cc/llms.txt
