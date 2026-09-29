@@ -1,6 +1,6 @@
 # Review field-service photos before publication
 
-Infrai puts image upload and multimodal moderation under one key. The second call is OpenAI-compatible `baseURL`, so any backend can orchestrate both with a small typed boundary. The service rule is simple: a clean photo-caption pair advances its work order to `ready_to_publish`. A flagged pair is held as `needs_technician_follow_up`.
+The decision is the service: a clean photo-caption pair advances its work order to `ready_to_publish`, while a flagged pair is held as `needs_technician_follow_up`. Infrai keeps image upload and multimodal moderation under one key, and the second call uses the OpenAI-compatible `baseURL` so an agent or ordinary backend can orchestrate both tools through a small typed boundary.
 
 ## Run the actual path
 
@@ -10,7 +10,7 @@ export INFRAI_API_KEY="your-key"
 npm run dev
 ```
 
-From another terminal, send one technician submission:
+Send one technician submission from another terminal:
 
 ```bash
 curl --request POST http://localhost:3000/work-order-photo-reviews \
@@ -26,7 +26,7 @@ curl --request POST http://localhost:3000/work-order-photo-reviews \
   }'
 ```
 
-When accepted, you get the state transition a dispatch system can persist:
+An accepted pair produces the state transition a dispatch system can persist:
 
 ```json
 {
@@ -41,15 +41,11 @@ When accepted, you get the state transition a dispatch system can persist:
 
 ## Why the order matters
 
-`screenWorkOrderPhoto` validates the full request with zod first. It stores the image with `image.upload`. Then multimodal moderation inspects the caption and the same image bytes together. That sequence is the point.
+`screenWorkOrderPhoto` first validates the complete request with zod, stores the image with `image.upload`, then asks multimodal moderation to inspect the caption and the same image bytes together. The upload carries the caller's stable `submissionId` in its idempotency key; retries therefore keep one storage operation attached to one field submission.
 
-The upload carries the caller's stable `submissionId` in its idempotency key. Retries therefore keep one storage operation attached to one field submission.
+The one real gotcha is splitting the checks: screening the caption and photo in unrelated jobs can publish one before the other verdict exists. Keep them in one orchestration step and persist only the returned `publication` decision. The in-memory service intentionally stops at that decision; authentication and durable work-order storage belong to the surrounding dispatch application.
 
-The real gotcha is splitting the checks. Screening caption and photo in separate jobs can publish one before the other verdict exists. Keep them in one orchestration step. Persist only the returned `publication` decision.
-
-The in-memory service stops at that decision. Authentication and durable work-order storage belong to your surrounding dispatch application.
-
-The REST client decodes `{ok, data, error, metadata}` before classifying status. It preserves ordinary rejection details in `InfraiError`. It backs off on HTTP 429 while honoring `Retry-After`. The HTTP route maps upstream 4xx back to a 4xx response instead of an internal error.
+The REST client decodes `{ok, data, error, metadata}` before classifying the status, preserves ordinary rejection details in `InfraiError`, and backs off on HTTP 429 while honoring `Retry-After`. The HTTP route maps upstream 4xx results back to a 4xx response instead of turning them into an internal error.
 
 ## Prove the business rule locally
 
@@ -59,11 +55,11 @@ npm test
 npm run typecheck
 ```
 
-The focused test supplies `WO-2048` twice. An unflagged verdict must return `publication: "approved"` and `ready_to_publish`. A flagged verdict must return `publication: "held"`, `needs_technician_follow_up`, and a concrete resubmission message. Both cases avoid network access. `npm run dev` exercises the real API path.
+The focused test supplies `WO-2048` twice. An unflagged verdict must return `publication: "approved"` and `ready_to_publish`; a flagged verdict must return `publication: "held"`, `needs_technician_follow_up`, and a concrete resubmission message. Both cases avoid network access, while `npm run dev` exercises the real API path.
 
 ## Code map
 
-`src/photo_publish_gate.ts` owns the zod model, moderation tool call, and visible dispatch transition. `src/infrai_image_upload.ts` is the reusable upload-envelope client. `src/dispatch_review_server.ts` is the explanatory HTTP entry point. `test/photo_publish_decision.test.ts` tests the decision rather than the existence of a helper.
+`src/photo_publish_gate.ts` owns the zod model, moderation tool call, and visible dispatch transition. `src/infrai_image_upload.ts` is the reusable upload-envelope client. `src/dispatch_review_server.ts` is the explanatory HTTP entry point, and `test/photo_publish_decision.test.ts` tests the decision rather than the existence of a helper.
 
 ## License
 
